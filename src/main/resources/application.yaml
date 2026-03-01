@@ -6,11 +6,13 @@ spring:
     url: jdbc:sqlite:./webhook.db
     driver-class-name: org.sqlite.JDBC
 
+  sql:
+    init:
+      mode: always
+      platform: sqlite
+
   jpa:
     database-platform: org.hibernate.community.dialect.SQLiteDialect
     hibernate:
       ddl-auto: none
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: false
+    defer-datasource-initialization: true
