@@ -46,3 +46,9 @@ out/
 .env
 application-prod.yml
 application-local.yml
+
+# sqlite
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
