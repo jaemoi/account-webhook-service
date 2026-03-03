@@ -1,6 +1,7 @@
 package com.assignment.accountchange.api
 
 import com.assignment.accountchange.application.WebhookFacade
+import com.assignment.accountchange.application.WebhookHandleResult
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -22,12 +23,21 @@ class WebhookController(
         @RequestBody rawBody: String
     ): Map<String, String> {
 
-        webhookFacade.receive(
+        val result = webhookFacade.receive(
             eventId = eventId,
             signature = signature,
             rawBody = rawBody
         )
 
-        return mapOf("result" to "received")
+        return when (result) {
+            WebhookHandleResult.Accepted ->
+                mapOf("result" to "received")
+
+            WebhookHandleResult.AlreadyProcessed ->
+                mapOf("result" to "already_processed")
+
+            WebhookHandleResult.InProgress ->
+                mapOf("result" to "processing")
+        }
     }
 }

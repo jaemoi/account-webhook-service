@@ -9,10 +9,5 @@ spring:
   sql:
     init:
       mode: always
-      platform: sqlite
-
-  jpa:
-    database-platform: org.hibernate.community.dialect.SQLiteDialect
-    hibernate:
-      ddl-auto: none
-    defer-datasource-initialization: true
+      schema-locations: classpath:schema.sql
+      continue-on-error: true
