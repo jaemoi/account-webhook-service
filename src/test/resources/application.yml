@@ -1,7 +1,12 @@
 spring:
   datasource:
-    url: jdbc:sqlite:file:./build/test-webhook.db
+    url: "jdbc:sqlite:file:memdb1?mode=memory&cache=shared"
     driver-class-name: org.sqlite.JDBC
+
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+
   sql:
     init:
       mode: always

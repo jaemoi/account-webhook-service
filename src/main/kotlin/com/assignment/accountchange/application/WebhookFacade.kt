@@ -9,9 +9,7 @@ import com.assignment.accountchange.infra.persistence.repository.AccountReposito
 import com.assignment.accountchange.infra.persistence.repository.InboxEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
-
 import org.springframework.dao.DataAccessException
-import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -32,6 +30,38 @@ class WebhookFacade(
         rawBody: String
     ): WebhookHandleResult {
 
+        validateHeaders(eventId, signature, rawBody)
+
+        val json = objectMapper.readTree(rawBody)
+
+        val eventType =
+            EventType.from(json["eventType"].asText())
+
+        val accountKey =
+            json["accountKey"].asText()
+
+        try {
+            inboxEventRepository.insert(
+                eventId = eventId,
+                eventType = eventType,
+                accountKey = accountKey,
+                payload = rawBody
+            )
+
+            return WebhookHandleResult.Accepted
+        } catch (e: DataAccessException) {
+            if (isDuplicateKey(e)) {
+                return handleDuplicate(eventId)
+            }
+            throw e
+        }
+    }
+
+    private fun validateHeaders(
+        eventId: String,
+        signature: String?,
+        rawBody: String
+    ) {
         if (eventId.isBlank()) {
             throw UnauthorizedException("Missing event id")
         }
@@ -43,53 +73,6 @@ class WebhookFacade(
         if (!hmacVerifier.verify(rawBody, signature)) {
             logger.warn("Invalid webhook signature. eventId={}", eventId)
             throw ForbiddenException("Invalid signature")
-        }
-
-
-
-        try {
-
-            inboxEventRepository.insert(
-                eventId = eventId,
-                eventType = EventType.UNKNOWN, // 임시값
-                accountKey = "",
-                payload = rawBody
-            )
-
-            val json = objectMapper.readTree(rawBody)
-
-            val eventType =
-                EventType.from(json["eventType"].asText())
-
-            val accountKey =
-                json["accountKey"].asText()
-
-
-            if (eventType == EventType.ACCOUNT_DELETED) {
-                accountRepository.markDeleted(accountKey)
-            }
-
-            logger.info("Webhook event saved. eventId={}", eventId)
-            return WebhookHandleResult.Accepted
-        } catch (e: DuplicateKeyException) {
-
-            return handleDuplicate(eventId)
-        } catch (e: DataAccessException) {
-
-            if (isDuplicateKey(e)) {
-                return handleDuplicate(eventId)
-            }
-
-            inboxEventRepository.markFailed(eventId, e.message)
-            throw e
-        } catch (e: Exception) {
-
-            inboxEventRepository.markFailed(
-                eventId,
-                e.message
-            )
-
-            throw e
         }
     }
 
@@ -112,9 +95,28 @@ class WebhookFacade(
         }
     }
 
-    private fun isDuplicateKey(e: DataAccessException): Boolean {
-        val root = e.rootCause
-        return root is org.sqlite.SQLiteException &&
-                root.resultCode == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT
+    private fun isDuplicateKey(e: Throwable): Boolean {
+        var cause: Throwable? = e
+        while (cause != null) {
+            if (cause is org.sqlite.SQLiteException) {
+                val code = cause.resultCode
+                if (
+                    code == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT ||
+                    code == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT_UNIQUE ||
+                    code == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT_PRIMARYKEY
+                ) return true
+
+                // 드라이버/버전별로 code가 다르게 올라오는 경우 마지막 안전장치
+                if (cause.message?.contains(
+                        "UNIQUE constraint failed",
+                        ignoreCase = true
+                    ) == true
+                ) {
+                    return true
+                }
+            }
+            cause = cause.cause
+        }
+        return false
     }
 }
