@@ -16,7 +16,9 @@ class EventProcessorDispatcher(
 
         val processor =
             processorMap[event.eventType]
-                ?: error("Unsupported event: ${event.eventType}")
+                ?: throw IllegalArgumentException(
+                    "Unsupported event type: ${event.eventType}"
+                )
 
         processor.process(event)
     }

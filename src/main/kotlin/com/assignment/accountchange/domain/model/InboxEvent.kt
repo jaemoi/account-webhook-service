@@ -5,5 +5,8 @@ data class InboxEvent(
     val eventType: EventType,
     val accountKey: String,
     val payload: String,
-    val status: EventStatus
+    val status: EventStatus,
+    val errorMessage: String?,
+    val receivedAt: String,
+    val processedAt: String?
 )

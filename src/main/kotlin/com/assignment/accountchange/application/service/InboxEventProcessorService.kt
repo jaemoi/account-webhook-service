@@ -2,8 +2,9 @@ package com.assignment.accountchange.application.service
 
 import com.assignment.accountchange.application.dispatcher.EventProcessorDispatcher
 import com.assignment.accountchange.infra.persistence.repository.InboxEventRepository
-import jakarta.transaction.Transactional
+
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class InboxEventProcessorService(

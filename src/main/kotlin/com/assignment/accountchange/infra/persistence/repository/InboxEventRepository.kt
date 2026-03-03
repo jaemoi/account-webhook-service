@@ -3,13 +3,15 @@ package com.assignment.accountchange.infra.persistence.repository
 import com.assignment.accountchange.domain.model.EventStatus
 import com.assignment.accountchange.domain.model.EventType
 import com.assignment.accountchange.domain.model.InboxEvent
+import com.assignment.accountchange.infra.persistence.mapper.InboxEventRowMapper
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 
 @Repository
 class InboxEventRepository(
-    private val jdbcTemplate: JdbcTemplate
+    private val jdbcTemplate: JdbcTemplate,
+    private val inBoxEventRowMapper: InboxEventRowMapper
 ) {
 
     fun insert(
@@ -45,22 +47,22 @@ class InboxEventRepository(
      */
     fun findNextReceived(): InboxEvent? {
         val sql = """
-            SELECT event_id, event_type, account_key, payload, status
+            SELECT event_id, event_type, account_key, payload, status,
+        error_message,
+        received_at,
+        processed_at
             FROM inbox_events
             WHERE status = ?
             ORDER BY received_at ASC
             LIMIT 1
         """.trimIndent()
 
-        return jdbcTemplate.query(sql, { rs, _ ->
-            InboxEvent(
-                eventId = rs.getString("event_id"),
-                eventType = EventType.valueOf(rs.getString("event_type")),
-                accountKey = rs.getString("account_key"),
-                payload = rs.getString("payload"),
-                status = EventStatus.valueOf(rs.getString("status"))
-            )
-        }, EventStatus.RECEIVED.name).firstOrNull()
+        return jdbcTemplate.query(
+            sql,
+            inBoxEventRowMapper,
+            EventStatus.RECEIVED.name
+        )
+            .firstOrNull()
     }
 
     /**
@@ -126,9 +128,28 @@ class InboxEventRepository(
         return jdbcTemplate.query(
             sql,
             { rs, _ ->
-                EventStatus.valueOf(rs.getString("status"))
+                EventStatus.from(rs.getString("status"))
             },
             eventId
         ).firstOrNull()
+    }
+
+    fun findByEventId(eventId: String): InboxEvent? {
+
+        val sql = """
+        SELECT event_id,
+               event_type,
+               account_key,
+               payload,
+               status,
+               error_message,
+               received_at,
+               processed_at
+        FROM inbox_events
+        WHERE event_id = ?
+    """.trimIndent()
+
+        return jdbcTemplate.query(sql, inBoxEventRowMapper, eventId)
+            .firstOrNull()
     }
 }

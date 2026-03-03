@@ -1,5 +1,7 @@
 package com.assignment.accountchange.infra.persistence.repository
 
+import com.assignment.accountchange.domain.model.Account
+import com.assignment.accountchange.domain.model.AccountStatus
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
@@ -56,5 +58,28 @@ class AccountRepository(
             { rs, _ -> rs.getLong("id") },
             accountKey
         ).first()
+    }
+
+    fun findByKey(accountKey: String): Account? {
+
+        val sql = """
+        SELECT account_key, email, service_status
+        FROM accounts
+        WHERE account_key = ?
+    """.trimIndent()
+
+        return jdbcTemplate.query(
+            sql,
+            { rs, _ ->
+                Account(
+                    accountKey = rs.getString("account_key"),
+                    email = rs.getString("email"),
+                    status = AccountStatus.from(
+                        rs.getString("service_status")
+                    )
+                )
+            },
+            accountKey
+        ).firstOrNull()
     }
 }

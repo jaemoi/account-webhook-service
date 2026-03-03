@@ -4,10 +4,11 @@ import com.assignment.accountchange.domain.model.EventStatus
 import com.assignment.accountchange.domain.model.EventType
 import com.assignment.accountchange.infra.persistence.repository.InboxEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
-import jakarta.transaction.Transactional
+
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class WebhookFacade(
@@ -24,7 +25,7 @@ class WebhookFacade(
 
         val json = objectMapper.readTree(rawBody)
 
-        val eventType = EventType.valueOf(json["eventType"].asText())
+        val eventType = EventType.from(json["eventType"].asText())
         val accountKey = json["accountKey"].asText()
 
         return try {

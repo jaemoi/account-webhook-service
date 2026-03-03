@@ -1,15 +1,33 @@
 package com.assignment.accountchange.api
 
+import com.assignment.accountchange.application.query.InboxEventQueryService
 import com.assignment.accountchange.application.service.InboxEventProcessorService
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/inbox")
 class InboxEventController(
+    private val queryService: InboxEventQueryService,
     private val service: InboxEventProcessorService
 ) {
+
+    @GetMapping("/events/{eventId}")
+    fun getEvent(
+        @PathVariable eventId: String
+    ): Map<String, Any?> {
+
+        val event = queryService.getEvent(eventId)
+
+        return mapOf(
+            "eventId" to event.eventId,
+            "eventType" to event.eventType,
+            "accountKey" to event.accountKey,
+            "status" to event.status,
+            "errorMessage" to event.errorMessage,
+            "receivedAt" to event.receivedAt,
+            "processedAt" to event.processedAt
+        )
+    }
 
     @PostMapping("/process")
     fun processOnce(): Map<String, Any?> {
