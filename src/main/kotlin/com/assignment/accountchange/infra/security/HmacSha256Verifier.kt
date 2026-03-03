@@ -2,14 +2,20 @@ package com.assignment.accountchange.infra.security
 
 import com.assignment.accountchange.domain.security.HmacVerifier
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.stereotype.Component
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 
 @Component
+@ConditionalOnProperty(
+    name = ["webhook.hmac.enabled"],
+    havingValue = "true",
+    matchIfMissing = true
+)
 class HmacSha256Verifier(
-    @field:Value("\${webhook.secret}")
+    @Value("\${webhook.secret}")
     private val secret: String
 ) : HmacVerifier {
 

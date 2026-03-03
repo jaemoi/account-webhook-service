@@ -4,6 +4,7 @@ import com.assignment.accountchange.application.exception.UnauthorizedException
 import com.assignment.accountchange.domain.model.EventStatus
 import com.assignment.accountchange.domain.model.EventType
 import com.assignment.accountchange.domain.security.HmacVerifier
+import com.assignment.accountchange.infra.persistence.repository.AccountRepository
 import com.assignment.accountchange.infra.persistence.repository.InboxEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.slf4j.LoggerFactory
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class WebhookFacade(
     private val inboxEventRepository: InboxEventRepository,
+    private val accountRepository: AccountRepository,
     private val objectMapper: ObjectMapper,
     private val hmacVerifier: HmacVerifier
 ) {
@@ -42,32 +44,56 @@ class WebhookFacade(
             throw UnauthorizedException("Invalid signature")
         }
 
-        val json = objectMapper.readTree(rawBody)
 
-        val eventType = EventType.from(json["eventType"].asText())
-        val accountKey = json["accountKey"].asText()
 
-        return try {
+        try {
 
             inboxEventRepository.insert(
                 eventId = eventId,
-                eventType = eventType,
-                accountKey = accountKey,
+                eventType = EventType.UNKNOWN, // 임시값
+                accountKey = "",
                 payload = rawBody
             )
 
+            // ⭐⭐⭐ JSON parsing 이동 (핵심)
+            val json = objectMapper.readTree(rawBody)
+
+            val eventType =
+                EventType.from(json["eventType"].asText())
+
+            val accountKey =
+                json["accountKey"].asText()
+
+
+            if (eventType == EventType.ACCOUNT_DELETED) {
+                accountRepository.markDeleted(accountKey)
+            }
+
             println("Event saved: $eventId")
-            WebhookHandleResult.Accepted
+            return WebhookHandleResult.Accepted
         } catch (e: DuplicateKeyException) {
 
-            handleDuplicate(eventId)
+            return handleDuplicate(eventId)
         } catch (e: DataAccessException) {
-            // SQLite fallback (VERY IMPORTANT)
+
             if (e.message?.contains("UNIQUE constraint failed") == true) {
-                handleDuplicate(eventId)
-            } else {
-                throw e
+                return handleDuplicate(eventId)
             }
+
+            inboxEventRepository.markFailed(
+                eventId,
+                e.message
+            )
+            throw e
+        } catch (e: Exception) {
+
+            // ⭐⭐⭐ 테스트가 원하는 부분
+            inboxEventRepository.markFailed(
+                eventId,
+                e.message
+            )
+
+            throw e
         }
     }
 
