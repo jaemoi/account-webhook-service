@@ -1,9 +1,12 @@
 package com.assignment.accountchange.application
 
+import com.assignment.accountchange.application.exception.UnauthorizedException
 import com.assignment.accountchange.domain.model.EventStatus
 import com.assignment.accountchange.domain.model.EventType
+import com.assignment.accountchange.domain.security.HmacVerifier
 import com.assignment.accountchange.infra.persistence.repository.InboxEventRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import org.slf4j.LoggerFactory
 
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DuplicateKeyException
@@ -13,8 +16,11 @@ import org.springframework.transaction.annotation.Transactional
 @Service
 class WebhookFacade(
     private val inboxEventRepository: InboxEventRepository,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
+    private val hmacVerifier: HmacVerifier
 ) {
+
+    private val logger = LoggerFactory.getLogger(WebhookFacade::class.java)
 
     @Transactional
     fun receive(
@@ -22,6 +28,19 @@ class WebhookFacade(
         signature: String?,
         rawBody: String
     ): WebhookHandleResult {
+
+        if (eventId.isBlank()) {
+            throw UnauthorizedException("Missing event id")
+        }
+
+        if (signature.isNullOrBlank()) {
+            throw UnauthorizedException("Missing signature")
+        }
+
+        if (!hmacVerifier.verify(rawBody, signature)) {
+            logger.warn("Invalid webhook signature. eventId={}", eventId)
+            throw UnauthorizedException("Invalid signature")
+        }
 
         val json = objectMapper.readTree(rawBody)
 

@@ -16,10 +16,8 @@ class WebhookController(
     @PostMapping("/account-changes")
     fun receiveWebhook(
         @RequestHeader("X-Event-Id") eventId: String,
-        @RequestHeader(
-            value = "X-Signature",
-            required = false
-        ) signature: String?,
+        @RequestHeader(value = "X-Signature", required = false)
+        signature: String?,
         @RequestBody rawBody: String
     ): Map<String, String> {
 

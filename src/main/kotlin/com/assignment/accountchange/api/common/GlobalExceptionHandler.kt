@@ -1,5 +1,6 @@
 package com.assignment.accountchange.api.common
 
+import com.assignment.accountchange.application.exception.UnauthorizedException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -16,5 +17,15 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiResponse.fail("BAD_REQUEST", e.message ?: "Bad request"))
+    }
+
+    @ExceptionHandler(UnauthorizedException::class)
+    fun handleUnauthorized(
+        e: UnauthorizedException
+    ): ResponseEntity<Map<String, String>> {
+
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(mapOf("error" to e.message.orEmpty()))
     }
 }
