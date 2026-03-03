@@ -1,5 +1,6 @@
 package com.assignment.accountchange.application
 
+import com.assignment.accountchange.application.exception.ForbiddenException
 import com.assignment.accountchange.application.exception.UnauthorizedException
 import com.assignment.accountchange.domain.model.EventStatus
 import com.assignment.accountchange.domain.model.EventType
@@ -41,7 +42,7 @@ class WebhookFacade(
 
         if (!hmacVerifier.verify(rawBody, signature)) {
             logger.warn("Invalid webhook signature. eventId={}", eventId)
-            throw UnauthorizedException("Invalid signature")
+            throw ForbiddenException("Invalid signature")
         }
 
 
@@ -55,7 +56,6 @@ class WebhookFacade(
                 payload = rawBody
             )
 
-            // ⭐⭐⭐ JSON parsing 이동 (핵심)
             val json = objectMapper.readTree(rawBody)
 
             val eventType =
@@ -69,25 +69,21 @@ class WebhookFacade(
                 accountRepository.markDeleted(accountKey)
             }
 
-            println("Event saved: $eventId")
+            logger.info("Webhook event saved. eventId={}", eventId)
             return WebhookHandleResult.Accepted
         } catch (e: DuplicateKeyException) {
 
             return handleDuplicate(eventId)
         } catch (e: DataAccessException) {
 
-            if (e.message?.contains("UNIQUE constraint failed") == true) {
+            if (isDuplicateKey(e)) {
                 return handleDuplicate(eventId)
             }
 
-            inboxEventRepository.markFailed(
-                eventId,
-                e.message
-            )
+            inboxEventRepository.markFailed(eventId, e.message)
             throw e
         } catch (e: Exception) {
 
-            // ⭐⭐⭐ 테스트가 원하는 부분
             inboxEventRepository.markFailed(
                 eventId,
                 e.message
@@ -114,5 +110,11 @@ class WebhookFacade(
             null ->
                 WebhookHandleResult.Accepted
         }
+    }
+
+    private fun isDuplicateKey(e: DataAccessException): Boolean {
+        val root = e.rootCause
+        return root is org.sqlite.SQLiteException &&
+                root.resultCode == org.sqlite.SQLiteErrorCode.SQLITE_CONSTRAINT
     }
 }

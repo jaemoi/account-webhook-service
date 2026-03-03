@@ -1,5 +1,7 @@
-package com.assignment.accountchange.api
+package com.assignment.accountchange.api.account
 
+import com.assignment.accountchange.api.account.response.AccountResponse
+import com.assignment.accountchange.api.common.ApiResponse
 import com.assignment.accountchange.application.query.AccountQueryService
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -15,15 +17,17 @@ class AccountQueryController(
     @GetMapping("/{accountKey}")
     fun getAccount(
         @PathVariable accountKey: String
-    ): Map<String, Any?> {
+    ): ApiResponse<AccountResponse> {
 
         val result = queryService.getAccount(accountKey)
 
-        return mapOf(
-            "accountKey" to result.accountKey,
-            "email" to result.email,
-            "status" to result.status,
-            "socialAccounts" to result.socialAccounts
+        val response = AccountResponse(
+            accountKey = result.accountKey,
+            email = result.email,
+            status = result.status.name,
+            socialAccounts = result.socialAccounts
         )
+
+        return ApiResponse.ok(response)
     }
 }

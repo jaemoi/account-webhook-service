@@ -1,5 +1,7 @@
-package com.assignment.accountchange.api
+package com.assignment.accountchange.api.webhook
 
+import com.assignment.accountchange.api.common.ApiResponse
+import com.assignment.accountchange.api.webhook.response.WebhookReceiveResponse
 import com.assignment.accountchange.application.WebhookFacade
 import com.assignment.accountchange.application.WebhookHandleResult
 import org.springframework.web.bind.annotation.*
@@ -19,7 +21,7 @@ class WebhookController(
         @RequestHeader(value = "X-Signature", required = false)
         signature: String?,
         @RequestBody rawBody: String
-    ): Map<String, String> {
+    ): ApiResponse<WebhookReceiveResponse> {
 
         val result = webhookFacade.receive(
             eventId = eventId,
@@ -27,15 +29,16 @@ class WebhookController(
             rawBody = rawBody
         )
 
-        return when (result) {
+        val response = when (result) {
             WebhookHandleResult.Accepted ->
-                mapOf("result" to "received")
+                WebhookReceiveResponse("received")
 
             WebhookHandleResult.AlreadyProcessed ->
-                mapOf("result" to "already_processed")
+                WebhookReceiveResponse("already_processed")
 
             WebhookHandleResult.InProgress ->
-                mapOf("result" to "processing")
+                WebhookReceiveResponse("processing")
         }
+        return ApiResponse.ok(response)
     }
 }
